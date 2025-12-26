@@ -1,0 +1,44 @@
+[package]
+name = "multicool"
+version = "0.1.0"
+edition = "2024"
+
+[[bench]]
+name = "sub_polys"
+harness = false
+
+[[bench]]
+name = "bezier_subdiv"
+harness = false
+
+[[bench]]
+name = "root_finding"
+harness = false
+
+[[bench]]
+name = "surface_eval"
+harness = false
+
+[dependencies]
+anstyle = "1.0.13"
+arrayvec = "0.7.6"
+env_logger = "0.11.8"
+fmtastic = "0.2.1"
+itertools = "0.14.0"
+log = "0.4.29"
+nalgebra = "0.34.1"
+num-traits = "0.2.19"
+polycool = "0.4.0"
+smallvec = "1.15.1"
+snafu = "0.8.9"
+static_assertions = "1.1.0"
+typenum = "1.19.0"
+
+[dev-dependencies]
+assert_unordered = "0.3.5"
+assertables = "9.8.3"
+pretty_assertions = "1.4.1"
+criterion = { version = "0.8.1", features = ["html_reports"] }
+testresult = "0.4.1"
+approx = "0.5.1"
+rand = "0.9.2"
