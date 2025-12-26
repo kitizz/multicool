@@ -54,12 +54,13 @@ impl<const NDIM: usize> BezierSurface<NDIM> {
             "Grid size must be at least 2 in each dimension"
         );
 
-        let mut coeffs = SmallVec::with_capacity(grid_size.iter().product());
+        let num_coeffs = grid_size.iter().product();
+        let mut coeffs = SmallVec::with_capacity(num_coeffs);
         for &c in coeffs_arr.iter() {
             coeffs.push(c);
         }
         Self {
-            eval_coeffs: RefCell::new(vec![0.0; grid_size.iter().product()]),
+            eval_coeffs: RefCell::new(vec![0.0; num_coeffs]),
             coeffs,
             grid_size,
             domain: domain.into(),
@@ -73,10 +74,10 @@ impl<const NDIM: usize> BezierSurface<NDIM> {
             "Grid size must be at least 2 in each dimension"
         );
 
+        let num_coeffs = grid_size.iter().product();
         Self {
-            coeffs: smallvec![0.0; grid_size.iter().product()],
-            eval_coeffs: RefCell::new(vec![0.0; grid_size.iter().product()]),
-            // coeffs: [0.0; 49].into(),
+            coeffs: smallvec![0.0; num_coeffs],
+            eval_coeffs: RefCell::new(vec![0.0; num_coeffs]),
             grid_size,
             domain: domain.into(),
             strides: Self::calc_strides(grid_size),
@@ -242,7 +243,6 @@ impl<const NDIM: usize> BezierSurface<NDIM> {
                 coord[d] = (1.0 - t) * self.domain[d].0 + t * self.domain[d].1;
             }
 
-            // TODO: See if computing the control points before returning speeds things up.
             ControlPoint::new(coord, self.coeffs[i], index)
         })
     }
@@ -311,15 +311,11 @@ impl<const NDIM: usize> BezierSurface<NDIM> {
 /// The first D components are the position, and the last component is the surface "height".
 /// For example, a a surface in 3D space would have D=2, with (x,y) as the first two components
 /// and z as the last component.
+#[derive(Debug, Clone)]
 pub struct ControlPoint<const D: usize> {
     /// The coordinate of this control point in "parameter" space, and its coefficient/value.
     pub point: VectorPromoted<D>,
 
-    // /// The coordinate of this control point in "parameter" space
-    // pub coord: [f64; D],
-
-    // /// The height/value of the surface at this control point
-    // pub coeff: f64,
     /// The integer index of this control point in the Bezier grid
     pub index: [usize; D],
 }

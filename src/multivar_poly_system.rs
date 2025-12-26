@@ -1,4 +1,3 @@
-use polycool::Poly;
 use smallvec::SmallVec;
 
 use crate::{BezierSurface, MulticoolError, bounding_box::BoundingBox};
@@ -26,6 +25,26 @@ impl<const NUM_VARS: usize> MultivarPolySystem<NUM_VARS> {
         Ok(Self { surfaces })
     }
 
+    /// Automatically choose the most appropriate method to find the roots of the system.
+    ///
+    /// It will try to use the fastest method that will work for the given system.
+    ///
+    /// # Errors
+    /// [`MulticoolError::UnderdefinedSystem`] if the system is underdefined (fewer equations than variables).
+    ///
+    /// Any other errors are a bug in the library.
+    ///
+    pub fn roots(&self, tol: f64) -> Result<Vec<[f64; NUM_VARS]>, MulticoolError> {
+        // The hyperplanes method is faster than the projected polyhedra method
+        // but it requires that the system is square (num equations == num variables)
+        // and currently only implemented for up to 5 variables.
+        if self.surfaces.len() == NUM_VARS && self.surfaces.len() <= 5 {
+            self.roots_hp(tol)
+        } else {
+            self.roots_pp(tol)
+        }
+    }
+
     /// Find the roots of the system using the Bezier Projected Polyhedra method.
     ///
     /// This method projects the Bezier surfaces onto each (x_i, x_{NUM_VARS}) plane
@@ -34,10 +53,10 @@ impl<const NUM_VARS: usize> MultivarPolySystem<NUM_VARS> {
         let refiner = refinement::Refiner::ProjectedPolyhedra(
             refinement::ProjectedPolyhedraRefiner::new(self.surfaces.len()),
         );
-        self.roots(tol, refiner)
+        self.roots_with_refiner(tol, refiner)
     }
 
-    /// Find the roots of the system using the Bezier Linear Programming method.
+    /// Find the roots of the system using hyperplane bounding method.
     ///
     /// This method projects hyperplanes that bound each surface onto the x_{NUM_VARS} = 0
     /// hyperplane. Linear programming is used to find the axis-aligned bounding region
@@ -45,15 +64,15 @@ impl<const NUM_VARS: usize> MultivarPolySystem<NUM_VARS> {
     /// Two hyperplanes are calculated for each surface. They are parallel to the tangent
     /// of the surface at the center of the valid region, and are offset such that they
     /// bound all control points of the surface.
-    pub fn roots_lp(&self, tol: f64) -> Result<Vec<[f64; NUM_VARS]>, MulticoolError> {
+    pub fn roots_hp(&self, tol: f64) -> Result<Vec<[f64; NUM_VARS]>, MulticoolError> {
         log::info!("Num surfaces: {}", self.surfaces.len());
-        let refiner = refinement::Refiner::HyperplanesLp(refinement::HyperplanesLpRefiner::new(
+        let refiner = refinement::Refiner::Hyperplanes(refinement::HyperplanesRefiner::new(
             self.surfaces.len(),
         ));
-        self.roots(tol, refiner)
+        self.roots_with_refiner(tol, refiner)
     }
 
-    pub fn roots(
+    pub fn roots_with_refiner(
         &self,
         tol: f64,
         mut refiner: refinement::Refiner<NUM_VARS>,
@@ -81,13 +100,13 @@ impl<const NUM_VARS: usize> MultivarPolySystem<NUM_VARS> {
             }
 
             // All surfaces should have the same domain
-            log::info!("It {iteration}: valid region: {:#?}", valid_regions);
+            log::debug!("It {iteration}: valid region: {:#?}", valid_regions);
             iteration += 1;
 
             // Try to reduce the size of valid_regions.
             refiner.refine_regions(&surfaces, &mut valid_regions)?;
 
-            log::info!("Refined region: {:?}", valid_regions);
+            log::debug!("Refined region: {:?}", valid_regions);
 
             // If any valid_regions are invalid, return no roots
             if !valid_regions.is_valid() {
@@ -104,7 +123,7 @@ impl<const NUM_VARS: usize> MultivarPolySystem<NUM_VARS> {
             // Subdivide each surface along the largest dimension at the midpoint
             let (lower_box, upper_box) = valid_regions.subdivide(largest_d);
 
-            log::info!(
+            log::debug!(
                 "Subdividing into: lower {:?}, upper {:?}",
                 lower_box,
                 upper_box
@@ -113,7 +132,7 @@ impl<const NUM_VARS: usize> MultivarPolySystem<NUM_VARS> {
             region_queue.push(upper_box);
         }
 
-        log::info!("Initial root regions: {:#?}", root_regions);
+        log::debug!("Initial root regions: {:#?}", root_regions);
 
         merge_overlapping_regions(&mut root_regions);
 
@@ -138,13 +157,13 @@ impl MultivarPolySystem<2> {
         let (a_poly_x, a_poly_y) = Self::bezier_poly(a);
         let (b_poly_x, b_poly_y) = Self::bezier_poly(b);
 
-        let eq1 = Self::multivar_eq(a_poly_x, b_poly_x);
-        let eq2 = Self::multivar_eq(a_poly_y, b_poly_y);
+        let eq1 = Self::multivar_eq(&a_poly_x, &b_poly_x);
+        let eq2 = Self::multivar_eq(&a_poly_y, &b_poly_y);
 
         Self::from_polys([eq1, eq2], domain).unwrap()
     }
 
-    fn bezier_poly<const N: usize>(points: [[f64; 2]; N]) -> (Poly<N>, Poly<N>) {
+    fn bezier_poly<const N: usize>(points: [[f64; 2]; N]) -> ([f64; N], [f64; N]) {
         let xs = points.map(|p| p[0]);
         let ys = points.map(|p| p[1]);
         let poly_x = Self::bezier_poly_1d(xs);
@@ -152,7 +171,7 @@ impl MultivarPolySystem<2> {
         (poly_x, poly_y)
     }
 
-    fn bezier_poly_1d<const N: usize>(v: [f64; N]) -> Poly<N> {
+    fn bezier_poly_1d<const N: usize>(v: [f64; N]) -> [f64; N] {
         // p_i = sum_{k=0 to i} (b_k * binomial(n, i) * binomial(i, k) * (-1)^(i-k))
         let mut coeffs = [0.0; N];
         let n = (N - 1) as u8;
@@ -164,19 +183,25 @@ impl MultivarPolySystem<2> {
                 coeffs[i] += v[k] * (binom_n_i as f64) * (binom_i_k as f64) * sign;
             }
         }
-        Poly::new(coeffs)
+        coeffs
     }
 
-    fn multivar_eq<const N: usize, const M: usize>(
-        lhs: Poly<N>,
-        rhs: Poly<M>,
-    ) -> crate::MultivarPoly<2> {
-        let mut monomials = Vec::with_capacity(N + M);
-        for (i, &coeff_lhs) in lhs.coeffs().iter().enumerate() {
+    /// Create a multivariate polynomial representing the equation lhs_poly = rhs_poly
+    ///
+    /// Requires:
+    /// - Inputs are polynomial coefficients in one variable where the index is the degree
+    ///   (e.g. coeffs[0] is the constant term, coeffs[1] is the x^1 term, etc.)
+    ///
+    /// Ensures:
+    /// - Returns a multivariate polynomial in two variables (x, y) where
+    ///   the lhs_poly is in x and rhs_poly is in y.
+    fn multivar_eq(lhs_poly: &[f64], rhs_poly: &[f64]) -> crate::MultivarPoly<2> {
+        let mut monomials = Vec::with_capacity(lhs_poly.len() + rhs_poly.len());
+        for (i, &coeff_lhs) in lhs_poly.iter().enumerate() {
             let mon = crate::Monomial::new(coeff_lhs, [i as u8, 0]);
             monomials.push(mon);
         }
-        for (j, &coeff_rhs) in rhs.coeffs().iter().enumerate() {
+        for (j, &coeff_rhs) in rhs_poly.iter().enumerate() {
             let mon = crate::Monomial::new(-coeff_rhs, [0, j as u8]);
             monomials.push(mon);
         }
@@ -314,7 +339,7 @@ mod tests {
             MultivarPolySystem::from_polys([line1, line2], [(-1.0, 1.0), (-1.0, 1.0)]).unwrap();
 
         const EPS: f64 = 1e-6;
-        let roots = system.roots_lp(EPS).unwrap();
+        let roots = system.roots_hp(EPS).unwrap();
         approx::assert_abs_diff_eq!(
             ApproxRoots(roots),
             ApproxRoots(vec![[0.0, 0.0]]),
@@ -344,7 +369,7 @@ mod tests {
             MultivarPolySystem::from_polys([circle1, circle2], [(-1.0, 2.0), (-1.0, 1.0)]).unwrap();
 
         const EPS: f64 = 1e-6;
-        let roots = system.roots_lp(EPS).unwrap();
+        let roots = system.roots_hp(EPS).unwrap();
         let root_y = 3f64.sqrt() / 2.0;
         approx::assert_abs_diff_eq!(
             ApproxRoots(roots),
@@ -364,7 +389,7 @@ mod tests {
         );
 
         const EPS: f64 = 1e-9;
-        let roots = system.roots_lp(EPS).unwrap();
+        let roots = system.roots_hp(EPS).unwrap();
         approx::assert_abs_diff_eq!(
             ApproxRoots(roots),
             ApproxRoots(vec![
@@ -401,7 +426,7 @@ mod tests {
         };
 
         const EPS: f64 = 1e-9;
-        let roots = system.roots_lp(EPS).unwrap();
+        let roots = system.roots_hp(EPS).unwrap();
         approx::assert_abs_diff_eq!(
             ApproxRoots(roots),
             ApproxRoots(expected_roots),

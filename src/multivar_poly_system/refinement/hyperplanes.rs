@@ -2,11 +2,11 @@ use crate::{
     BezierSurface, MulticoolError, bounding_box::BoundingBox, vector_promoted::VectorPromoted,
 };
 
-pub struct HyperplanesLpRefiner<const D: usize> {
+pub struct HyperplanesRefiner<const D: usize> {
     bounding_hyperplanes: Vec<BoundingHyperplanes<D>>,
 }
 
-impl<const D: usize> HyperplanesLpRefiner<D> {
+impl<const D: usize> HyperplanesRefiner<D> {
     pub fn new(num_surfaces: usize) -> Self {
         Self {
             bounding_hyperplanes: vec![BoundingHyperplanes::default(); num_surfaces],

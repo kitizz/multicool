@@ -1,13 +1,4 @@
 // TODO:
-// - [x] Develop struct/interface to build/represent multivariate polynomials
-// - [x] Representation for Bernstein control points
-// - [ ] Implement conversion from standard polynomial basis to Bernstein basis/control points
-//   - [ ] Binomial coefficient calculation
-// - [ ] Implement IPP algorithm for solving system of multivariate polynomials
-//   - [ ] Find appropriate interval arithmetic crate
-//   - [ ] Validate
-// - [ ] Implement boundining hyperplanes for solving system
-//   - [ ] Validate
 // - [ ] Benchmark methods for common CAD/CAM problems
 // - [ ] Add methods for building a system from explicit and implicit hyper-surfaces
 //   - [ ] Eg. p(t) = ... and q(x,y,z) = 0  =>  q(p(t)) = 0

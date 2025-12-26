@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 use fmtastic::{Subscript, Superscript};
-use polycool::Poly;
+use smallvec::SmallVec;
 
 use crate::{MulticoolError, MultivarPoly, gridex_excl};
 
@@ -41,6 +41,10 @@ impl<const V: usize> core::fmt::Debug for Monomial<V> {
     }
 }
 
+// Type alias for a vector of polynomial coefficients
+// Use SmallVec to reduce heap allocations for small polynomials
+type PolyVec = SmallVec<[f64; 16]>;
+
 impl<const V: usize> Monomial<V> {
     pub fn new(coeff: f64, exp: [u8; V]) -> Self {
         Self { coeff, exp }
@@ -67,7 +71,7 @@ impl<const V: usize> Monomial<V> {
         true
     }
 
-    /// Substitute each variables in this monomial with the given polynomial.
+    /// Substitute each variable in this monomial with the given polynomial.
     ///
     /// Note that each polynomial's variable is separate from the others,
     /// and separate from the monomial's variables.
@@ -79,12 +83,11 @@ impl<const V: usize> Monomial<V> {
     /// ], the code looks like:
     /// ```rust
     /// use multicool::{Monomial, MultivarPoly};
-    /// use polycool::Poly;
     ///
     /// let mon = Monomial::new(3.0, [2, 1]);
     /// let polys = [
-    ///     Poly::new([1.0, 2.0, 0.0]),
-    ///     Poly::new([3.0, 0.0, 6.0]),
+    ///     [1.0, 2.0, 0.0],
+    ///     [3.0, 0.0, 6.0],
     /// ];
     /// let result_multivar = mon.sub_polys(&polys).unwrap();
     ///
@@ -102,32 +105,23 @@ impl<const V: usize> Monomial<V> {
     /// g(u, v) = 9 + 18(v^2) + 36(u) + 72(u)(v^2) + 36(u^2) + 72(u^2)(v^2)
     ///
     /// # Parameters
-    /// - `MAX_TERMS`: Maximum number of terms allowed in the resulting multivariate polynomial
     /// - `N`: Maximum number of coefficients in the input polynomials
     ///
     pub fn sub_polys<const N: usize>(
         &self,
-        vars: &[Poly<N>; V],
+        rhs_polys: &[[f64; N]; V],
     ) -> Result<MultivarPoly<V>, MulticoolError> {
-        // Arbitrary limit for now. Assumes degree + 1 of any expanded polynomial is below this.
-        const MAX_POLY_COEFFS: usize = 12;
-
-        let mut var_polys = ArrayVec::<ArrayVec<f64, MAX_POLY_COEFFS>, V>::new();
+        let mut var_polys = ArrayVec::<PolyVec, V>::new();
         let mut num_coeffs = [0u8; V];
 
         for i in 0..V {
-            let var_pow = poly_pow(vars[i].coeffs(), self.exp[i])?;
-            // let mut var_pow = ArrayVec::new();
-            // for c in vars[i].coeffs().iter() {
-            //     var_pow.push(*c);
-            // }
+            let var_pow = poly_pow(&rhs_polys[i], self.exp[i])?;
             num_coeffs[i] = (var_pow.len()) as u8;
             var_polys.push(var_pow);
         }
 
         // Expand the product of all var_polys into its monomial terms.
-        let mut monomials = smallvec::SmallVec::new();
-        // let mut monomials = Vec::new();
+        let mut monomials = smallvec::smallvec![];
         for exp in gridex_excl(num_coeffs) {
             let mut sub_coeff = 1.0;
             for i in 0..V {
@@ -141,9 +135,7 @@ impl<const V: usize> Monomial<V> {
             monomials.push(term);
         }
         monomials.sort();
-        // black_box(monomials);
         Ok(MultivarPoly { terms: monomials })
-        // Ok(MultivarPoly::new())
     }
 }
 
@@ -158,31 +150,14 @@ fn size<const N: usize>(coeffs: &[f64; N]) -> usize {
     N
 }
 
-fn poly_pow<const MAX: usize, const N: usize>(
-    // coeffs: &ArrayVec<f64, N>,
-    coeffs: &[f64; N],
-    exp: u8,
-) -> Result<ArrayVec<f64, MAX>, MulticoolError> {
-    const {
-        assert!(MAX >= N, "MAX must be at least N");
-    }
-
-    let final_len = 1 + (N - 1) * (exp as usize);
-    if MAX < final_len {
-        return Err(MulticoolError::AlgorithmError {
-            message: format!(
-                "MAX in poly_pow too small for result: {} < {}",
-                MAX, final_len
-            ),
-        });
-    }
+fn poly_pow<const N: usize>(coeffs: &[f64; N], exp: u8) -> Result<PolyVec, MulticoolError> {
     if exp == 0 {
-        let mut result = ArrayVec::<f64, MAX>::new();
+        let mut result = smallvec::smallvec![];
         result.push(1.0);
         return Ok(result);
     }
 
-    let mut result = ArrayVec::<f64, MAX>::new();
+    let mut result = smallvec::smallvec![];
     for i in 0..N {
         result.push(coeffs[i]);
     }
@@ -193,29 +168,8 @@ fn poly_pow<const MAX: usize, const N: usize>(
     Ok(result)
 }
 
-fn convolve<const MAX: usize, const N: usize>(
-    a: ArrayVec<f64, MAX>,
-    // b: &ArrayVec<f64, N>,
-    b: &[f64; N],
-) -> Result<ArrayVec<f64, MAX>, MulticoolError> {
-    if a.len() + b.len() - 1 > MAX {
-        return Err(MulticoolError::AlgorithmError {
-            message: format!(
-                "Convolution result exceeds maximum allowed size: {} > {}",
-                a.len() + b.len() - 1,
-                MAX
-            ),
-        });
-    }
-
-    // TODO: Time this vs in-place in reverse order.
-    let mut result = ArrayVec::<f64, MAX>::new();
-    for _ in 0..(a.len() + b.len() - 1) {
-        // SAFETY: We checked the length above.
-        unsafe {
-            result.push_unchecked(0.0);
-        }
-    }
+fn convolve<const N: usize>(a: PolyVec, b: &[f64; N]) -> Result<PolyVec, MulticoolError> {
+    let mut result = smallvec::smallvec![0.0; a.len() + b.len() - 1];
 
     for i in 0..a.len() {
         for j in 0..b.len() {
@@ -348,9 +302,9 @@ mod tests {
             exp: [2, 3, 1],
         };
         let vars = [
-            Poly::new([0.0, 1.0]), // x
-            Poly::new([0.0, 1.0]), // y
-            Poly::new([0.0, 1.0]), // z
+            [0.0, 1.0], // x
+            [0.0, 1.0], // y
+            [0.0, 1.0], // z
         ];
         let result_multivar = assert_ok!(monomial.sub_polys(&vars));
 
@@ -368,7 +322,7 @@ mod tests {
             exp: [2],
         };
         let vars = [
-            Poly::new([3.0]), // x
+            [3.0], // x
         ];
         let result_multivar = assert_ok!(monomial.sub_polys(&vars));
 

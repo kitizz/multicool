@@ -1,4 +1,3 @@
-use polycool::Poly;
 use smallvec::{SmallVec, smallvec};
 
 use crate::{BezierSurface, Monomial, MulticoolError, binomial_product};
@@ -6,19 +5,16 @@ use crate::{BezierSurface, Monomial, MulticoolError, binomial_product};
 #[derive(Debug, Clone)]
 pub struct MultivarPoly<const NUM_VAR: usize> {
     pub(crate) terms: SmallVec<[Monomial<NUM_VAR>; 8]>,
-    // pub(crate) terms: Vec<Monomial<NUM_VAR>>,
 }
 
 impl<const NUM_VAR: usize> MultivarPoly<NUM_VAR> {
     pub fn new() -> Self {
         Self {
             terms: SmallVec::new(),
-            // terms: vec![],
         }
     }
 
     pub fn from_monomials(monomials: impl IntoIterator<Item = Monomial<NUM_VAR>>) -> Self {
-        // let terms = monomials.into_iter().collect();
         Self {
             terms: monomials.into_iter().collect(),
         }
@@ -39,7 +35,7 @@ impl<const NUM_VAR: usize> MultivarPoly<NUM_VAR> {
 
     pub fn sub_polys<const N: usize>(
         &self,
-        polys: &[Poly<N>; NUM_VAR],
+        polys: &[[f64; N]; NUM_VAR],
     ) -> Result<Self, MulticoolError> {
         let mut output = MultivarPoly::<NUM_VAR>::new();
 
@@ -65,9 +61,9 @@ impl<const NUM_VAR: usize> MultivarPoly<NUM_VAR> {
     ) -> Result<BezierSurface<NUM_VAR>, MulticoolError> {
         // Perform affine parameter transformation from bbox to unit box [0, 1]^NUM_VAR
         // by substituting x_i = (t_i - min_i) / (max_i - min_i) = 1/Δi * t_i + (-min_i/Δi)
-        let affines: [Poly<2>; NUM_VAR] = std::array::from_fn(|i| {
+        let affines: [[f64; 2]; NUM_VAR] = std::array::from_fn(|i| {
             let (min_i, max_i) = bbox[i];
-            Poly::new([min_i, max_i - min_i])
+            [min_i, max_i - min_i]
         });
         let unit_poly = self.sub_polys(&affines)?;
 
@@ -84,32 +80,28 @@ impl<const NUM_VAR: usize> MultivarPoly<NUM_VAR> {
             max_degs
         };
 
-        let grid_size = std::array::from_fn(|i| (max_degs[i] as usize + 1).max(2));
-        let mut surface = BezierSurface::zeros(grid_size, bbox);
+        let grid_size = std::array::from_fn(|i| (max_degs[i] + 1).max(2));
+        let mut surface = BezierSurface::zeros(grid_size.map(|s| s as usize), bbox);
 
         // 2. Sum over Eq (3) in the paper
         for control_inds in crate::gridex_excl(grid_size) {
-            // TODO: See how performance differs if we don't have to convert types.
-            let control_inds_u8 = control_inds.map(|i| i as u8);
-
             let bern_coeff = unit_poly
                 .terms()
-                .filter(|m| m.exp_all_le(&control_inds_u8))
+                .filter(|m| m.exp_all_le(&control_inds))
                 .map(|m| {
-                    let num = binomial_product(control_inds_u8, m.exp) as f64;
+                    let num = binomial_product(control_inds, m.exp) as f64;
                     let den = binomial_product(max_degs, m.exp) as f64;
                     m.coeff * num / den
                 })
                 .sum();
 
-            surface.set_coeff(control_inds, bern_coeff);
+            surface.set_coeff(control_inds.map(usize::from), bern_coeff);
         }
         Ok(surface)
     }
 
     pub fn merge(mut self, other: Self) -> Self {
         let mut merged = SmallVec::with_capacity(self.terms.len() + other.terms.len());
-        // let mut merged = Vec::with_capacity(self.terms.len() + other.terms.len());
 
         let mut a_iter = self.terms.into_iter().peekable();
         let mut b_iter = other.terms.into_iter().peekable();
@@ -339,8 +331,8 @@ mod tests {
 
         // Affine transformation to bigger radius and x offset.
         let affine = [
-            Poly::new([-3.0, 2.0]), // x
-            Poly::new([0.0, 2.0]),  // y
+            [-3.0, 2.0], // x
+            [0.0, 2.0],  // y
         ];
 
         let result_multivar = assert_ok!(circle.sub_polys(&affine));
@@ -363,8 +355,8 @@ mod tests {
             .add_monomials([Monomial::new(1.0, [1, 0]), Monomial::new(-1.0, [0, 1])]);
 
         let affine = [
-            Poly::new([-1.0, 2.0]), // x
-            Poly::new([-1.0, 2.0]), // y
+            [-1.0, 2.0], // x
+            [-1.0, 2.0], // y
         ];
 
         let result_multivar = assert_ok!(line.sub_polys(&affine));

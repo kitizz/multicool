@@ -97,7 +97,7 @@ fn root_lp_find_circles(c: &mut Criterion) {
                     .unwrap();
 
             const EPS: f64 = 1e-9;
-            let roots = system.roots_lp(EPS).unwrap();
+            let roots = system.roots_hp(EPS).unwrap();
             black_box(roots)
         })
     });
@@ -113,7 +113,7 @@ fn root_lp_find_beziers(c: &mut Criterion) {
             );
 
             const EPS: f64 = 1e-9;
-            let roots = system.roots_lp(EPS).unwrap();
+            let roots = system.roots_hp(EPS).unwrap();
             black_box(roots)
         })
     });
@@ -136,7 +136,7 @@ fn root_lp_find_cylinders(c: &mut Criterion) {
             .unwrap();
 
             const EPS: f64 = 1e-9;
-            let roots = system.roots_lp(EPS).unwrap();
+            let roots = system.roots_hp(EPS).unwrap();
             black_box(roots)
         })
     });

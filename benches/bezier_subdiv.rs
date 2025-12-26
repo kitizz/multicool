@@ -1,6 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use multicool::{BezierSurface, Monomial, MultivarPoly};
-use polycool::Poly;
 use std::hint::black_box;
 
 fn bezier_subsection_quadratic(c: &mut Criterion) {
@@ -29,8 +28,8 @@ fn bezier_surface(c: &mut Criterion) {
         Monomial::new(1.0, [0, 2]),
     ]);
     let bezier = [
-        Poly::new([-3.0, 1.0, 2.5, -10.0]), // x
-        Poly::new([4.0, 2.0, -5.0, -3.0]),  // y
+        [-3.0, 1.0, 2.5, -10.0], // x
+        [4.0, 2.0, -5.0, -3.0],  // y
     ];
     let combined = circle.sub_polys(black_box(&bezier)).unwrap();
 
@@ -52,8 +51,8 @@ fn bezier_subsection_larger(c: &mut Criterion) {
         Monomial::new(1.0, [0, 2]),
     ]);
     let bezier = [
-        Poly::new([-3.0, 1.0, 2.5, -10.0]), // x
-        Poly::new([4.0, 2.0, -5.0, -3.0]),  // y
+        [-3.0, 1.0, 2.5, -10.0], // x
+        [4.0, 2.0, -5.0, -3.0],  // y
     ];
     let combined = circle.sub_polys(black_box(&bezier)).unwrap();
     let surface = combined.bezier_surface([(2.0, 5.0), (-2.0, 2.0)]).unwrap();
