@@ -7,10 +7,10 @@ $$
 \begin{align}
 x^2 + (y + 0.25)^2 &= 0 \\
 (x - 1)^2 + y^2 &= 0 \\
-\end{align} \\
-where \\
-x \in [x_{min}, x_{max}], y \in [y_{min}, y_{max}]
+\end{align}
 $$
+
+where $x \in [x_{min}, x_{max}], y \in [y_{min}, y_{max}]$
 
 Requires:
 
