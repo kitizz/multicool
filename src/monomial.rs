@@ -332,25 +332,4 @@ mod tests {
         }]);
         assert_eq!(result_multivar, expected);
     }
-
-    // Uncomment this and run cargo test pad_monomial_compile_fail to see the compile-time failure
-    // #[test]
-    // fn pad_monomial_compile_fail() {
-    //     let monomial = Monomial {
-    //         coeff: 2.0,
-    //         exp: [1, 2, 0, 0],
-    //     };
-    //     let padded = monomial.pad_right::<2>();
-    // }
-
-    // #[test]
-    // fn pad_monomial() {
-    //     let monomial = Monomial {
-    //         coeff: 2.0,
-    //         exp: [1, 2],
-    //     };
-    //     let padded = monomial.pad_right::<4>();
-    //     assert_eq!(padded.coeff, 2.0);
-    //     assert_eq!(padded.exp, [1, 2, 0, 0]);
-    // }
 }

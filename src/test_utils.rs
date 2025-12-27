@@ -53,7 +53,6 @@ pub fn init_test_logger() {
 /// centered at the origin, extending infinitely along the specified axis.
 pub fn cylinder_poly<const D: usize>(axis: usize) -> crate::MultivarPoly<D> {
     use crate::{Monomial, MultivarPoly};
-    // use smallvec::{SmallVec, smallvec};
 
     let mut terms = vec![];
     for d in 0..D {

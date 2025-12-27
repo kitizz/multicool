@@ -44,7 +44,6 @@ impl<const D: usize> HyperplanesRefiner<D> {
         }
 
         let hyperplane_bounds = intersection_region(&self.bounding_hyperplanes);
-        // let hyperplane_bounds = self.approx_intersection_region();
 
         match hyperplane_bounds {
             None => {}

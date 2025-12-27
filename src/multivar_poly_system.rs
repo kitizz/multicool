@@ -241,8 +241,6 @@ mod refinement;
 
 #[cfg(test)]
 mod tests {
-    // use pretty_assertions as pa;
-
     use crate::{Monomial, MultivarPoly};
 
     use super::*;

@@ -126,7 +126,6 @@ impl<const NDIM: usize> BezierSurface<NDIM> {
 
         let mut sub_grid_size = self.grid_size;
         let mut corner_gridex = [0usize; NDIM];
-        // let mut ts = [0.0f64; NDIM];
 
         for d in 0..NDIM {
             let (min, max) = self.domain[d];
@@ -533,10 +532,7 @@ mod tests {
             -1.0, 3.0, -2.0, 1.0, //
         ];
         let bezier = BezierSurface::new(&coeffs, grid_size, [(-2.0, 1.0), (-1.5, 1.0)]);
-        // let bezier = BezierSurface::new(&coeffs, grid_size, [(0.0, 1.0), (0.0, 1.0)]);
 
-        // for x in linspace(0.0, 1.0, 20) {
-        //     for y in linspace(0.0, 1.0, 20) {
         for x in linspace(-2.0, 1.0, 20) {
             for y in linspace(-1.5, 1.0, 20) {
                 log::info!("Testing point ({}, {})", x, y);
