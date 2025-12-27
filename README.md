@@ -22,7 +22,8 @@ Requires:
 ```rust
 use multicool::{Monomial, MultivarPoly, MultivarPolySystem}
 
-// x^2 + (y + 0.25)^2 = 1
+//       x^2 + (y + 0.25)^2 = 1
+// x^2 + y^2 + 0.5y - 0.875 = 0
 let circle1 = MultivarPoly::new().add_monomials([
     Monomial::new(1.0, [2, 0]),
     Monomial::new(1.0, [0, 2]),
@@ -31,6 +32,7 @@ let circle1 = MultivarPoly::new().add_monomials([
 ]);
 
 // (x - 1)^2 + y^2 = 1
+//  x^2 - 2x + y^2 = 0
 let circle2 = MultivarPoly::new().add_monomials([
     Monomial::new(1.0, [2, 0]),
     Monomial::new(-2.0, [1, 0]),
