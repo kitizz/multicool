@@ -72,6 +72,13 @@ pub struct BoundingHyperplanes<const D: usize> {
 }
 
 /// Compute the bounding box that contains the intersection of BoundingHyperplanes
+///
+/// Note that this does not implement the full linear-programming solution described in the original
+/// paper [1]. By restricting to system of equal number equations and unknowns, we can take advantage
+/// of symmetry from the parallel hyperplanes. As a result, it only needs to solve
+/// (N + 1) NxN-square-matrix systems.
+///
+/// [1] "Solving multivariate polynomial systems using hyperplane arithmetic and linear programming", Iddo Hanniel, 2014 (https://doi.org/10.1016/j.cad.2013.08.022)
 fn intersection_region<const D: usize>(
     planes: &[BoundingHyperplanes<D>],
 ) -> Option<BoundingBox<D>> {
@@ -93,6 +100,7 @@ macro_rules! impl_intersection_region {
         debug_assert!(planes.len() == $D);
 
         let lhs = na::SMatrix::<f64, $D, $D>::from_fn(|r, c| planes[r].normal.base()[c]);
+        // Optimization: Re-use rhs in the loop below.
         let mut rhs = na::SVector::<f64, $D>::from_fn(|r, _c| {
             0.5 * (planes[r].bmin + planes[r].bmax)
         });
@@ -101,7 +109,8 @@ macro_rules! impl_intersection_region {
             return None;
         };
 
-        // Compute the bounding box around the center point
+        // Compute a bounding box centered at center_point that contains the intersection region
+        // of all the parallel bounding hyperplanes.
         let mut bounds_extents = [0.0; $D];
         for d in 0..$D {
             let half_plane_disp = 0.5 * (planes[d].bmax - planes[d].bmin);

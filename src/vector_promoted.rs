@@ -3,6 +3,8 @@ use std::ops::{Add, Mul};
 /// A vector that been promoted from size N to size N+1 by adding an extra element.
 ///
 /// This is currently needed since (stable) Rust does not yet support const generics arithmetic.
+///
+/// The interface provides basic vector operations to improve the readability of code that uses it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct VectorPromoted<const N: usize, T: Copy = f64> {
     base: [T; N],
@@ -25,6 +27,7 @@ impl<const N: usize, T: Copy> VectorPromoted<N, T> {
         self.extra
     }
 
+    /// Compute the dot product with another promoted vector.
     pub fn dot(&self, other: &Self) -> T
     where
         T: Add<Output = T> + Mul<Output = T> + Default,

@@ -51,6 +51,13 @@ let roots: Vec<[f64; 2]> = system.roots(EPS).unwrap();
 
 This library is heavily motivated by computational geometry problems like finding the intersections of curves and surfaces. In particular CAD and CAM applications.
 
+# References
+
+The algorithms in this library were developed from the following publications.
+
+- [Shape Interrogation for Computer Aided Design and Manufacturing](https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/)
+- [Solving multivariate polynomial systems using hyperplane arithmetic and linear programming](https://www.sciencedirect.com/science/article/abs/pii/S0010448513001620)
+
 # License
 
 Dual-licensed to be compatible with the Rust project.
