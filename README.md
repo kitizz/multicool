@@ -5,9 +5,9 @@ If you have a system of equations that looks like the following, then this libra
 
 $$
 \begin{align}
-x^2 + (y + 0.25)^2 &= 0
-(x - 1)^2 + y^2 &= 0
-where
+x^2 + (y + 0.25)^2 &= 0 \\
+(x - 1)^2 + y^2 &= 0 \\
+where \\
 x \in [x_{min}, x_{max}], y \in [y_{min}, y_{max}]
 \end{align}
 $$
